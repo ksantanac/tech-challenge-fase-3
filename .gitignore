@@ -1,0 +1,49 @@
+# ===== Terraform =====
+**/.terraform/*
+*.tfstate
+*.tfstate.*
+*.tfvars
+!*.tfvars.example
+crash.log
+crash.*.log
+override.tf
+override.tf.json
+*_override.tf
+.terraformrc
+terraform.rc
+
+# ===== Credenciais / segredos =====
+.env
+*.env
+.aws/
+*.local.sh
+# manifesto de secret com valores reais (fica só local)
+gitops/apps/**/secret.yaml
+
+# ===== Não versionar (uso pessoal / entrega) =====
+POSTECH - Tech Challenge - Fase 3.pdf
+*.pdf
+docs/VIDEO-ROTEIRO.md
+docs/TESTE-LOCAL.md
+docs/*-ROTEIRO.md
+docs/DEPLOY-GUIDE.md
+docs/*GUIDE*
+docs/*GUIA*
+
+# ===== Ferramentas / IDE / OS =====
+.claude/
+.idea/
+.vscode/
+*.log
+.DS_Store
+Thumbs.db
+
+# ===== Go / Python =====
+*.exe
+*.test
+*.out
+bin/
+__pycache__/
+*.py[cod]
+venv/
+.venv/

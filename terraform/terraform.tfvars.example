@@ -1,0 +1,11 @@
+# Copie para terraform.tfvars e preencha. NUNCA versione o terraform.tfvars real
+# (ele está no .gitignore) — a senha do banco é sensível.
+
+db_password = "TroqueEssaSenhaForte2026!"
+
+# Opcionais (já têm default sensato):
+# region             = "us-east-1"
+# project            = "togglemaster"
+# cluster_version    = "1.31"
+# node_instance_type = "t3.medium"
+# db_username        = "toggle_admin"

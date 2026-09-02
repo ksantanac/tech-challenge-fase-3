@@ -1,0 +1,157 @@
+name: CI Go (reusável)
+
+# Pipeline de CI + DevSecOps para os microsserviços em Go (auth, evaluation).
+on:
+  workflow_call:
+    inputs:
+      service:
+        description: "Nome do microsserviço (pasta e repositório ECR)"
+        required: true
+        type: string
+
+permissions:
+  contents: write # necessário para o passo de GitOps (commit da nova tag)
+
+env:
+  AWS_REGION: us-east-1
+  ECR_REGISTRY: 687390749560.dkr.ecr.us-east-1.amazonaws.com
+
+jobs:
+  # ------------------------------------------------------------------ #
+  # 1. Build & Unit Test
+  # ------------------------------------------------------------------ #
+  build-test:
+    name: Build & Test
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ${{ inputs.service }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: "1.21"
+      - name: Resolver dependências
+        run: go mod tidy
+      - name: Build
+        run: go build ./...
+      - name: Testes unitários
+        run: go test ./...
+
+  # ------------------------------------------------------------------ #
+  # 2. Linter / Static Analysis (informativo)
+  # ------------------------------------------------------------------ #
+  lint:
+    name: Lint (golangci-lint)
+    runs-on: ubuntu-latest
+    needs: build-test
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: "1.21"
+      - name: go mod tidy
+        run: go mod tidy
+        working-directory: ${{ inputs.service }}
+      - name: golangci-lint
+        uses: golangci/golangci-lint-action@v6
+        continue-on-error: true # advisory: não bloqueia o pipeline
+        with:
+          working-directory: ${{ inputs.service }}
+          args: --timeout=5m
+
+  # ------------------------------------------------------------------ #
+  # 3. Security Scan — SCA (bloqueia em CRÍTICO) + SAST (informativo)
+  # ------------------------------------------------------------------ #
+  security:
+    name: Security Scan (SCA + SAST)
+    runs-on: ubuntu-latest
+    needs: build-test
+    steps:
+      - uses: actions/checkout@v4
+
+      # SCA: vulnerabilidades nas DEPENDÊNCIAS. Bloqueia se achar CRÍTICA.
+      - name: Trivy SCA (dependências)
+        uses: aquasecurity/trivy-action@0.24.0
+        with:
+          scan-type: fs
+          scan-ref: ${{ inputs.service }}
+          severity: CRITICAL
+          ignore-unfixed: true
+          exit-code: "1" # <-- REGRA DE BLOQUEIO
+
+      # SAST: vulnerabilidades no CÓDIGO-FONTE (gosec). Informativo.
+      - uses: actions/setup-go@v5
+        with:
+          go-version: "1.21"
+      - name: gosec (SAST)
+        continue-on-error: true
+        run: |
+          go install github.com/securego/gosec/v2/cmd/gosec@latest
+          cd ${{ inputs.service }} && go mod tidy && gosec ./...
+
+  # ------------------------------------------------------------------ #
+  # 4. Docker Build & Push (só na main) — scan da imagem bloqueia em CRÍTICO
+  # ------------------------------------------------------------------ #
+  docker:
+    name: Docker Build, Scan & Push (ECR)
+    runs-on: ubuntu-latest
+    needs: [lint, security]
+    if: github.ref == 'refs/heads/main'
+    outputs:
+      image_tag: ${{ steps.meta.outputs.tag }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Definir tag (commit hash)
+        id: meta
+        run: echo "tag=v1.0.0-$(echo ${GITHUB_SHA} | cut -c1-7)" >> "$GITHUB_OUTPUT"
+
+      - name: Credenciais AWS (Academy)
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-session-token: ${{ secrets.AWS_SESSION_TOKEN }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Login no ECR
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Build da imagem
+        run: docker build -t ${{ env.ECR_REGISTRY }}/${{ inputs.service }}:${{ steps.meta.outputs.tag }} ./${{ inputs.service }}
+
+      - name: Trivy — scan da imagem (bloqueia em CRÍTICO)
+        uses: aquasecurity/trivy-action@0.24.0
+        with:
+          scan-type: image
+          image-ref: ${{ env.ECR_REGISTRY }}/${{ inputs.service }}:${{ steps.meta.outputs.tag }}
+          severity: CRITICAL
+          ignore-unfixed: true
+          exit-code: "1"
+
+      - name: Push para o ECR
+        run: docker push ${{ env.ECR_REGISTRY }}/${{ inputs.service }}:${{ steps.meta.outputs.tag }}
+
+  # ------------------------------------------------------------------ #
+  # 5. GitOps — atualiza a tag da imagem no repositório (ArgoCD sincroniza)
+  # ------------------------------------------------------------------ #
+  update-gitops:
+    name: GitOps — atualizar tag
+    runs-on: ubuntu-latest
+    needs: docker
+    if: github.ref == 'refs/heads/main'
+    steps:
+      - uses: actions/checkout@v4
+      - name: Atualizar a tag no deployment.yaml
+        run: |
+          FILE="gitops/apps/${{ inputs.service }}/deployment.yaml"
+          sed -i -E "s|(${{ inputs.service }}):.*|\1:${{ needs.docker.outputs.image_tag }}|" "$FILE"
+          echo "Nova imagem:"; grep 'image:' "$FILE"
+      - name: Commit & push
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add gitops/apps/${{ inputs.service }}/deployment.yaml
+          git commit -m "gitops(${{ inputs.service }}): deploy ${{ needs.docker.outputs.image_tag }} [skip ci]" || echo "sem mudanças"
+          git push
