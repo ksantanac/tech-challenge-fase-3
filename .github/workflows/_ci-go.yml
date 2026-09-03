@@ -70,15 +70,12 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Instalar Trivy
+        run: curl -sfL https://raw.githubusercontent.com/aquasecurity/trivy/main/contrib/install.sh | sh -s -- -b /usr/local/bin
+
       # SCA: vulnerabilidades nas DEPENDÊNCIAS. Bloqueia se achar CRÍTICA.
-      - name: Trivy SCA (dependências)
-        uses: aquasecurity/trivy-action@v0.28.0
-        with:
-          scan-type: fs
-          scan-ref: ${{ inputs.service }}
-          severity: CRITICAL
-          ignore-unfixed: true
-          exit-code: "1" # <-- REGRA DE BLOQUEIO
+      - name: Trivy SCA (dependências) — bloqueia em CRÍTICO
+        run: trivy fs --severity CRITICAL --ignore-unfixed --exit-code 1 ${{ inputs.service }}
 
       # SAST: vulnerabilidades no CÓDIGO-FONTE (gosec). Informativo.
       - uses: actions/setup-go@v5
@@ -121,14 +118,11 @@ jobs:
       - name: Build da imagem
         run: docker build -t ${{ env.ECR_REGISTRY }}/${{ inputs.service }}:${{ steps.meta.outputs.tag }} ./${{ inputs.service }}
 
+      - name: Instalar Trivy
+        run: curl -sfL https://raw.githubusercontent.com/aquasecurity/trivy/main/contrib/install.sh | sh -s -- -b /usr/local/bin
+
       - name: Trivy — scan da imagem (bloqueia em CRÍTICO)
-        uses: aquasecurity/trivy-action@v0.28.0
-        with:
-          scan-type: image
-          image-ref: ${{ env.ECR_REGISTRY }}/${{ inputs.service }}:${{ steps.meta.outputs.tag }}
-          severity: CRITICAL
-          ignore-unfixed: true
-          exit-code: "1"
+        run: trivy image --severity CRITICAL --ignore-unfixed --exit-code 1 ${{ env.ECR_REGISTRY }}/${{ inputs.service }}:${{ steps.meta.outputs.tag }}
 
       - name: Push para o ECR
         run: docker push ${{ env.ECR_REGISTRY }}/${{ inputs.service }}:${{ steps.meta.outputs.tag }}
