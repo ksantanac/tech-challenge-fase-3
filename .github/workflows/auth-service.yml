@@ -12,6 +12,9 @@ on:
     paths:
       - "auth-service/**"
 
+permissions:
+  contents: write
+
 jobs:
   ci:
     uses: ./.github/workflows/_ci-go.yml
