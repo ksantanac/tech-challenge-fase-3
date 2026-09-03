@@ -73,7 +73,7 @@ jobs:
 
       # SCA: vulnerabilidades nas DEPENDÊNCIAS. Bloqueia se achar CRÍTICA.
       - name: Trivy SCA (dependências)
-        uses: aquasecurity/trivy-action@0.24.0
+        uses: aquasecurity/trivy-action@v0.28.0
         with:
           scan-type: fs
           scan-ref: ${{ inputs.service }}
@@ -123,7 +123,7 @@ jobs:
         run: docker build -t ${{ env.ECR_REGISTRY }}/${{ inputs.service }}:${{ steps.meta.outputs.tag }} ./${{ inputs.service }}
 
       - name: Trivy — scan da imagem (bloqueia em CRÍTICO)
-        uses: aquasecurity/trivy-action@0.24.0
+        uses: aquasecurity/trivy-action@v0.28.0
         with:
           scan-type: image
           image-ref: ${{ env.ECR_REGISTRY }}/${{ inputs.service }}:${{ steps.meta.outputs.tag }}
