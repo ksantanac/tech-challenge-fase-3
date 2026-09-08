@@ -20,7 +20,7 @@ terraform {
   # O bucket é criado uma única vez por terraform/00-bootstrap-backend.sh.
   # use_lockfile (Terraform >= 1.10) faz o lock no próprio S3, sem precisar de DynamoDB.
   backend "s3" {
-    bucket       = "togglemaster-tfstate-687390749560"
+    bucket       = "togglemaster-tfstate-885359793851"
     key          = "fase3/terraform.tfstate"
     region       = "us-east-1"
     encrypt      = true
