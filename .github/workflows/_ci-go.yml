@@ -30,7 +30,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-go@v5
         with:
-          go-version: "1.23"
+          go-version: "1.25"
       - name: Resolver dependências
         run: go mod tidy
       - name: Build
@@ -49,7 +49,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-go@v5
         with:
-          go-version: "1.23"
+          go-version: "1.25"
       - name: go mod tidy
         run: go mod tidy
         working-directory: ${{ inputs.service }}
@@ -80,7 +80,7 @@ jobs:
       # SAST: vulnerabilidades no CÓDIGO-FONTE (gosec). Informativo.
       - uses: actions/setup-go@v5
         with:
-          go-version: "1.23"
+          go-version: "1.25"
       - name: gosec (SAST)
         continue-on-error: true
         run: |
