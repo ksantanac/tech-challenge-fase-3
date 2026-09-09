@@ -63,9 +63,13 @@ module "ecr" {
 }
 
 # ---------------------------------------------------------------------------
-# 6. ArgoCD — instalado no cluster via Helm (GitOps)
+# 6. ArgoCD — instalado no cluster via Helm CLI (GitOps)
 # ---------------------------------------------------------------------------
-module "argocd" {
-  source     = "./modules/argocd"
-  depends_on = [module.eks]
-}
+# Obs.: o módulo terraform/modules/argocd (provider helm) fica disponível como
+# alternativa, mas em ambiente Windows o provider helm teve problema de cache de
+# repositório. Para robustez, o ArgoCD é instalado via Helm CLI (scripts/install-argocd.sh),
+# opção também permitida pelo desafio.
+# module "argocd" {
+#   source     = "./modules/argocd"
+#   depends_on = [module.eks]
+# }

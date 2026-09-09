@@ -18,9 +18,9 @@ REGION=$(terraform output -raw region 2>/dev/null || echo "us-east-1")
 REDIS=$(terraform output -raw redis_endpoint)
 SQS_URL=$(terraform output -raw sqs_queue_url)
 DYNAMO=$(terraform output -raw dynamodb_table_name)
-AUTH_HOST=$(terraform output -json rds_addresses | python -c "import sys,json;print(json.load(sys.stdin)['auth'])")
-FLAG_HOST=$(terraform output -json rds_addresses | python -c "import sys,json;print(json.load(sys.stdin)['flags'])")
-TARG_HOST=$(terraform output -json rds_addresses | python -c "import sys,json;print(json.load(sys.stdin)['targeting'])")
+AUTH_HOST=$(terraform output -json rds_endpoints | python -c "import sys,json;print(json.load(sys.stdin)['auth'].split(':')[0])")
+FLAG_HOST=$(terraform output -json rds_endpoints | python -c "import sys,json;print(json.load(sys.stdin)['flags'].split(':')[0])")
+TARG_HOST=$(terraform output -json rds_endpoints | python -c "import sys,json;print(json.load(sys.stdin)['targeting'].split(':')[0])")
 popd >/dev/null
 
 NS=togglemaster
